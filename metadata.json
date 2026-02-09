@@ -1,0 +1,5 @@
+{
+  "name": "OpenClaw Game OS",
+  "description": "A 2.5D Isometric Spatial Operating System for OpenClaw agents. Manage skills, visualize status, and interact with your AI agent in a gamified world.",
+  "requestFramePermissions": []
+}
