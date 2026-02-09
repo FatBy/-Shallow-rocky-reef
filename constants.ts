@@ -57,4 +57,4 @@ export const INITIAL_SKILLS: Skill[] = [
   }
 ];
 
-export const WS_URL = 'ws://localhost:18789';
+export const WS_URL = 'ws://localhost:18789/ws';

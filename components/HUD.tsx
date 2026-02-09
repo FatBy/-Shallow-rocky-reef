@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
 import { openClawService } from '../services/OpenClawService';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Command, Activity, Zap, Terminal, ChevronDown, ChevronUp, PlayCircle, HelpCircle, Globe, AlertTriangle, RotateCcw, Laptop, Cloud } from 'lucide-react';
+import { Settings, Command, Activity, Zap, Terminal, ChevronDown, ChevronUp, PlayCircle, HelpCircle, Globe, AlertTriangle, RotateCcw, Laptop, Cloud, Download, FileJson } from 'lucide-react';
 import { clsx } from 'clsx';
 import { INITIAL_SKILLS, WS_URL } from '../constants';
 import { ConnectionMode } from '../types';
@@ -94,6 +94,126 @@ export const HUD: React.FC = () => {
         openClawService.connect('demo-token');
     }, 50);
   };
+
+  const handleDownloadInstaller = () => {
+      const packageJson = {
+          "name": "openclaw-ui",
+          "private": true,
+          "version": "1.0.0",
+          "type": "module",
+          "scripts": {
+            "dev": "vite",
+            "build": "tsc && vite build",
+            "preview": "vite preview"
+          },
+          "dependencies": {
+            "clsx": "^2.1.1",
+            "framer-motion": "^12.0.0",
+            "lucide-react": "^0.344.0",
+            "react": "^18.2.0",
+            "react-dom": "^18.2.0",
+            "zustand": "^4.5.0"
+          },
+          "devDependencies": {
+            "@types/react": "^18.2.56",
+            "@types/react-dom": "^18.2.19",
+            "@vitejs/plugin-react": "^4.2.1",
+            "autoprefixer": "^10.4.18",
+            "postcss": "^8.4.35",
+            "tailwindcss": "^3.4.1",
+            "typescript": "^5.2.2",
+            "vite": "^5.1.4"
+          }
+      };
+
+      const viteConfig = `import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+})`;
+
+      const tsConfig = `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}`;
+
+      const installScript = `
+const fs = require('fs');
+const path = require('path');
+
+console.log('🚀 Initializing OpenClaw UI Local Environment...');
+
+const files = {
+  'package.json': ${JSON.stringify(JSON.stringify(packageJson, null, 2))},
+  'vite.config.ts': ${JSON.stringify(viteConfig)},
+  'tsconfig.json': ${JSON.stringify(tsConfig)},
+  'index.html': \`<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenClaw Game OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { margin: 0; overflow: hidden; background-color: #111827; } .scrollbar-thin::-webkit-scrollbar { width: 6px; } .scrollbar-thin::-webkit-scrollbar-track { background: transparent; } .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 20px; }</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>\`
+};
+
+// Create basic structure
+if (!fs.existsSync('src')) {
+    fs.mkdirSync('src');
+    console.log('Created src/ directory');
+}
+
+// Write Config Files
+for (const [name, content] of Object.entries(files)) {
+    if (!fs.existsSync(name)) {
+        fs.writeFileSync(name, content);
+        console.log(\`Created \${name}\`);
+    } else {
+        console.log(\`Skipped \${name} (already exists)\`);
+    }
+}
+
+console.log('\\n✅ Configuration files created!');
+console.log('👉 Next Steps:');
+console.log('1. Copy your source files (App.tsx, etc.) into the "src" folder.');
+console.log('2. Run "npm install"');
+console.log('3. Run "npm run dev"');
+`;
+
+      const blob = new Blob([installScript], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'install.js';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  };
   
   const activeSkill = INITIAL_SKILLS.find(s => 
     Math.round(s.x) === Math.round(playerPos.x) && 
@@ -105,6 +225,25 @@ export const HUD: React.FC = () => {
   const isInsecureWs = displayUrl.trim().startsWith('ws://');
   const showSecurityWarning = isHttps && isInsecureWs && settings.mode !== 'local'; // Relax warning for localhost usually, but browser still blocks mixed content
 
+  // Localization Helpers
+  const isZh = settings.language === 'zh';
+  
+  const statusLabels = {
+      connected: isZh ? '已连接' : 'CONNECTED',
+      connecting: isZh ? '连接中...' : 'CONNECTING',
+      disconnected: isZh ? '未连接' : 'DISCONNECTED',
+      mock: isZh ? '模拟模式' : 'SIMULATION',
+      error: isZh ? '错误' : 'ERROR'
+  };
+
+  const statusColors = {
+      connected: "bg-green-500 shadow-[0_0_10px_#22c55e]",
+      connecting: "bg-yellow-500 animate-pulse",
+      disconnected: "bg-red-500",
+      mock: "bg-purple-500 shadow-[0_0_10px_#a855f7]",
+      error: "bg-red-700"
+  };
+
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4">
       
@@ -114,15 +253,14 @@ export const HUD: React.FC = () => {
            <div className="bg-black/60 backdrop-blur-md p-3 rounded-lg border border-gray-700 text-white shadow-xl flex items-center gap-3">
               <div className={clsx(
                 "w-3 h-3 rounded-full",
-                connectionStatus === 'connected' ? "bg-green-500 shadow-[0_0_10px_#22c55e]" :
-                connectionStatus === 'mock' ? "bg-purple-500 shadow-[0_0_10px_#a855f7]" :
-                connectionStatus === 'connecting' ? "bg-yellow-500 animate-pulse" :
-                "bg-red-500"
+                statusColors[connectionStatus] || "bg-gray-500"
               )} />
               <div className="flex flex-col">
-                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Status</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    {isZh ? '系统状态' : 'Status'}
+                </span>
                 <span className="text-sm font-semibold">
-                    {connectionStatus === 'mock' ? 'SIMULATION' : connectionStatus.toUpperCase()}
+                    {statusLabels[connectionStatus]}
                 </span>
               </div>
            </div>
@@ -136,7 +274,9 @@ export const HUD: React.FC = () => {
                className="bg-yellow-500/20 backdrop-blur-md p-2 rounded-lg border border-yellow-500/50 text-yellow-200 flex items-center gap-2"
              >
                 <Activity size={16} className="animate-spin" />
-                <span className="text-xs font-bold">AGENT PROCESSING...</span>
+                <span className="text-xs font-bold">
+                    {isZh ? 'Agent 运行中...' : 'AGENT PROCESSING...'}
+                </span>
              </motion.div>
            )}
            </AnimatePresence>
@@ -165,7 +305,7 @@ export const HUD: React.FC = () => {
         <div className="flex-1 h-full bg-black/60 backdrop-blur-md rounded-lg border border-gray-700 flex flex-col overflow-hidden shadow-2xl transition-all duration-300">
           <div className="bg-gray-900/50 p-2 border-b border-gray-700 flex justify-between items-center cursor-pointer" onClick={() => setIsChatMinimized(!isChatMinimized)}>
              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Terminal size={14} /> OpenClaw Console
+                <Terminal size={14} /> OpenClaw {isZh ? '控制台' : 'Console'}
              </span>
              <div className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-500">v1.0.0</span>
@@ -179,7 +319,9 @@ export const HUD: React.FC = () => {
           {!isChatMinimized && (
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 {logs.length === 0 && (
-                    <div className="text-gray-500 italic text-sm text-center mt-10">No activity recorded.</div>
+                    <div className="text-gray-500 italic text-sm text-center mt-10">
+                        {isZh ? '暂无记录' : 'No activity recorded.'}
+                    </div>
                 )}
                 {logs.map((log) => (
                 <div key={log.id} className={clsx("text-sm break-words", 
@@ -197,16 +339,31 @@ export const HUD: React.FC = () => {
           )}
           
           {/* Input Bar */}
-          <form onSubmit={handleSubmit} className="p-2 bg-gray-900/80 border-t border-gray-700 flex gap-2">
+          <form onSubmit={handleSubmit} className="p-2 bg-gray-900/80 border-t border-gray-700 flex gap-2 items-center">
+             {/* Small Status Box in Input Area */}
+             <div 
+                className={clsx(
+                    "hidden md:flex items-center gap-2 px-2 py-1 rounded border text-[10px] font-bold uppercase select-none mr-1 transition-colors",
+                    connectionStatus === 'connected' ? "bg-green-900/30 border-green-700 text-green-400" :
+                    connectionStatus === 'mock' ? "bg-purple-900/30 border-purple-700 text-purple-400" :
+                    "bg-red-900/30 border-red-700 text-red-400"
+                )}
+                title={isZh ? '当前连接状态' : 'Current Connection Status'}
+             >
+                 <div className={clsx("w-1.5 h-1.5 rounded-full", statusColors[connectionStatus])} />
+                 <span>{statusLabels[connectionStatus]}</span>
+             </div>
+
              <input 
                type="text" 
                value={inputValue}
                onChange={(e) => setInputValue(e.target.value)}
-               placeholder={activeSkill ? `Execute ${activeSkill.name} command...` : "Enter command..."}
+               placeholder={activeSkill ? `Execute ${activeSkill.name} command...` : (isZh ? "输入指令..." : "Enter command...")}
                className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500 font-mono text-sm"
                autoFocus
+               disabled={connectionStatus === 'connecting'}
              />
-             <button type="submit" className="text-cyan-500 hover:text-cyan-400 disabled:opacity-50">
+             <button type="submit" className="text-cyan-500 hover:text-cyan-400 disabled:opacity-50" disabled={connectionStatus === 'connecting'}>
                 <Zap size={18} />
              </button>
           </form>
@@ -225,7 +382,7 @@ export const HUD: React.FC = () => {
             >
               <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                     <Settings className="text-cyan-500" /> Settings
+                     <Settings className="text-cyan-500" /> {isZh ? '设置' : 'Settings'}
                   </h2>
                   <div className="flex bg-gray-800 rounded p-1">
                       <button 
@@ -250,6 +407,24 @@ export const HUD: React.FC = () => {
               </div>
               
               <div className="space-y-4">
+                {/* Local Deployment Section */}
+                <div className="p-3 bg-cyan-900/20 border border-cyan-800 rounded">
+                    <h3 className="text-xs font-bold text-cyan-400 uppercase mb-2 flex items-center gap-2">
+                        <Download size={12} /> {isZh ? '本地部署' : 'Local Deployment'}
+                    </h3>
+                    <p className="text-xs text-gray-400 mb-2 leading-relaxed">
+                        {isZh 
+                          ? "需要本地运行？点击下方按钮下载安装脚本，然后在本地文件夹中运行 'node install.js' 即可自动生成配置文件。" 
+                          : "Want to run locally? Download the installer script, then run 'node install.js' in your folder to auto-generate config files."}
+                    </p>
+                    <button 
+                        onClick={handleDownloadInstaller}
+                        className="w-full flex items-center justify-center gap-2 bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-bold py-2 rounded transition-colors"
+                    >
+                        <FileJson size={14} /> {isZh ? '下载安装脚本 (install.js)' : 'Download Installer (install.js)'}
+                    </button>
+                </div>
+
                 <div>
                    <div className="flex justify-between items-center mb-1">
                         <label className="block text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
@@ -319,7 +494,7 @@ export const HUD: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Language</label>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Language / 语言</label>
                   <div className="flex gap-2">
                     <button 
                       onClick={() => updateSettings({ language: 'en' })}
@@ -345,20 +520,20 @@ export const HUD: React.FC = () => {
                             showSecurityWarning ? "bg-gray-600 opacity-50 cursor-not-allowed" : "bg-green-600 hover:bg-green-500"
                         )}
                     >
-                        {settings.mode === 'local' ? "Connect Local" : "Connect Remote"}
+                        {settings.mode === 'local' ? (isZh ? "连接本地" : "Connect Local") : (isZh ? "连接远程" : "Connect Remote")}
                     </button>
                     <button 
                         type="button"
                         onClick={handleDemoMode}
                         className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded transition-colors"
                     >
-                        {settings.language === 'zh' ? "模拟模式" : "Demo Mode"}
+                        {settings.language === 'zh' ? "模拟演示" : "Demo Mode"}
                     </button>
                     <button 
                         onClick={() => setIsSettingsOpen(false)}
                         className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors"
                     >
-                        Close
+                        {isZh ? "关闭" : "Close"}
                     </button>
                 </div>
               </div>
