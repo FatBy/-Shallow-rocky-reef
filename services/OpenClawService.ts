@@ -18,7 +18,15 @@ class OpenClawService {
     addLog({ sender: 'system', text: `Attempting connection to ${targetUrl}...` });
 
     try {
-      this.ws = new WebSocket(`${targetUrl}?token=${encodeURIComponent(token)}`);
+      // SHOTGUN STRATEGY: 
+      // Send token in multiple query params to match different backend expectations (FastAPI, Flask, plain Auth).
+      // Also construct a Bearer token string for 'authorization' param if supported by backend overrides.
+      const encodedToken = encodeURIComponent(token);
+      const encodedBearer = encodeURIComponent(`Bearer ${token}`);
+      
+      const fullUrl = `${targetUrl}?token=${encodedToken}&access_token=${encodedToken}&authorization=${encodedBearer}`;
+
+      this.ws = new WebSocket(fullUrl);
 
       this.ws.onopen = () => {
         setConnectionStatus('connected');
@@ -96,22 +104,24 @@ class OpenClawService {
         if (isZh) {
              addLog({ sender: 'system', text: '--- 故障排查 ---' });
              addLog({ sender: 'system', text: '1. 请确认后端已在端口 18789 启动。' });
+             addLog({ sender: 'system', text: '2. 确认 URL 路径 (例: ws://localhost:18789 或 /ws)。' });
              
              if (isHttps && isWs && !isLocal) {
-                 addLog({ sender: 'system', text: '2. 安全拦截: HTTPS 网页无法连接不安全的 ws:// 地址。请使用 wss:// 或在本地运行前端。' });
+                 addLog({ sender: 'system', text: '3. 安全拦截: HTTPS 网页无法连接不安全的 ws:// 地址。请使用 wss:// 或在本地运行前端。' });
              } else {
-                 addLog({ sender: 'system', text: '2. 检查防火墙设置。' });
-                 addLog({ sender: 'system', text: '3. 验证 Token 是否正确。' });
+                 addLog({ sender: 'system', text: '3. 检查防火墙设置。' });
+                 addLog({ sender: 'system', text: '4. 验证 Token 是否正确。' });
              }
         } else {
              addLog({ sender: 'system', text: '--- Troubleshooting ---' });
              addLog({ sender: 'system', text: '1. Ensure Backend is running on port 18789.' });
+             addLog({ sender: 'system', text: '2. Check URL path (e.g. ws://localhost:18789 or /ws).' });
              
              if (isHttps && isWs && !isLocal) {
-                 addLog({ sender: 'system', text: '2. Mixed Content Error: Cannot connect to insecure ws:// from https:// page. Use wss:// or run frontend locally.' });
+                 addLog({ sender: 'system', text: '3. Mixed Content Error: Cannot connect to insecure ws:// from https:// page. Use wss:// or run frontend locally.' });
              } else {
-                 addLog({ sender: 'system', text: '2. Check firewall settings.' });
-                 addLog({ sender: 'system', text: '3. Verify API Token.' });
+                 addLog({ sender: 'system', text: '3. Check firewall settings.' });
+                 addLog({ sender: 'system', text: '4. Verify API Token.' });
              }
         }
     }

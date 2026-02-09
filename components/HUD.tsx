@@ -31,38 +31,40 @@ export const HUD: React.FC = () => {
     let cleaned = url.trim();
     
     // 1. Recover from bad pastes (e.g. "ws://localhost:18http://...")
-    // Look for a valid http/https pattern inside the string if the start is messy
-    if (!cleaned.match(/^(ws|wss):\/\/[\w.-]+(:\d+)?$/)) {
-         const extraction = cleaned.match(/(https?|wss?):\/\/[\w.-]+(:\d+)?/);
+    if (!cleaned.match(/^(ws|wss):\/\/[\w.-]+(:\d+)?(\/.*)?$/)) {
+         const extraction = cleaned.match(/(https?|wss?):\/\/[\w.-]+(:\d+)?(\/[^\s]*)?/);
          if (extraction) {
              cleaned = extraction[0];
          }
     }
 
-    // 2. Protocol Conversion (http -> ws, https -> wss)
+    // 2. Protocol Conversion
     if (cleaned.startsWith('http://')) cleaned = cleaned.replace('http://', 'ws://');
     if (cleaned.startsWith('https://')) cleaned = cleaned.replace('https://', 'wss://');
     
-    // 3. Strip common API suffixes (OpenClaw uses raw WS on the root or specific path, not OpenAI paths)
-    // Remove /v1/chat/completions etc.
-    cleaned = cleaned.replace(/\/v1\/.*$/, '');
-    
-    // 4. Ensure no trailing slash unless it's just the root (optional, but cleaner)
-    if (cleaned.length > 15 && cleaned.endsWith('/')) {
+    // 3. Strip common REST API suffixes if accidentally pasted
+    // But be careful not to strip valid WS paths if the user intends them.
+    if (cleaned.endsWith('/v1/chat/completions')) {
+        cleaned = cleaned.replace(/\/v1\/chat\/completions$/, '');
+    }
+
+    // 4. Remove trailing slash if it's just root, to keep it clean, but allow it if user typed it
+    if (cleaned.length > 15 && cleaned.endsWith('/') && cleaned.split('/').length <= 4) {
         cleaned = cleaned.slice(0, -1);
     }
+    
+    // REMOVED: The logic that forced '/ws' to be appended. 
+    // We now trust the user's input or the default constant.
 
     return cleaned;
   };
 
   const handleConnect = () => {
-     // Sanitize before connecting
      const clean = sanitizeUrl(settings.wsUrl);
      if (clean !== settings.wsUrl) {
          updateSettings({ wsUrl: clean });
      }
      
-     // Small delay to ensure store updates if we changed it
      setTimeout(() => {
         openClawService.disconnect();
         openClawService.connect(settings.apiToken);
@@ -93,9 +95,7 @@ export const HUD: React.FC = () => {
     Math.round(s.y) === Math.round(playerPos.y)
   );
 
-  // Security Check Logic
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-  // Check against the SANITIZED version for the warning logic to be accurate
   const displayUrl = settings.wsUrl;
   const isInsecureWs = displayUrl.trim().startsWith('ws://');
   const showSecurityWarning = isHttps && isInsecureWs;
