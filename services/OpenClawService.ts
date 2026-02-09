@@ -7,6 +7,7 @@ class OpenClawService {
 
   connect(token: string) {
     const { setConnectionStatus, addLog, settings } = useGameStore.getState();
+    const targetUrl = settings.wsUrl || WS_URL;
 
     if (!token) {
       addLog({ sender: 'system', text: settings.language === 'en' ? 'Token required to connect.' : '连接需要令牌。' });
@@ -14,15 +15,10 @@ class OpenClawService {
     }
 
     setConnectionStatus('connecting');
-    addLog({ sender: 'system', text: `Attempting connection to ${WS_URL}...` });
+    addLog({ sender: 'system', text: `Attempting connection to ${targetUrl}...` });
 
     try {
-      // In a real scenario, we might pass the token in query params or initial handshake if headers aren't supported by browser WS API directly (standard WS API doesn't support custom headers easily, but we assume the environment might proxy it or we use a library. For this code, we simulate standard behavior).
-      // Note: Browser WebSocket API does NOT support custom headers. 
-      // Often tokens are passed via "Sec-WebSocket-Protocol" or Query Params: ?token=...
-      // We will assume Query Param for this implementation as it's the standard workaround.
-      
-      this.ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`);
+      this.ws = new WebSocket(`${targetUrl}?token=${encodeURIComponent(token)}`);
 
       this.ws.onopen = () => {
         setConnectionStatus('connected');
@@ -44,37 +40,81 @@ class OpenClawService {
         }
       };
 
-      this.ws.onerror = () => {
-        // Fallback to mock immediately on error for smooth DX
-        this.startMockMode();
+      this.ws.onerror = (e) => {
+        console.error('WebSocket error:', e);
+        // Trigger diagnostics
+        this.startMockMode(true);
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (e) => {
+        // If we haven't already switched to mock mode via onerror
         if (useGameStore.getState().connectionStatus !== 'mock') {
-           setConnectionStatus('disconnected');
-           addLog({ sender: 'system', text: 'Connection closed.' });
+           // Code 1006 is usually "Connection Refused" or "Abnormal Closure"
+           if (e.code === 1006) {
+             this.startMockMode(true);
+           } else {
+             setConnectionStatus('disconnected');
+             addLog({ sender: 'system', text: `Connection closed (Code: ${e.code}).` });
+           }
         }
       };
 
     } catch (e) {
-      this.startMockMode();
+      console.error('Connection setup error:', e);
+      this.startMockMode(true);
     }
   }
 
-  startMockMode() {
-    const { setConnectionStatus, addLog, settings } = useGameStore.getState();
+  startMockMode(showDiagnostics = false) {
+    const { setConnectionStatus, addLog, settings, connectionStatus } = useGameStore.getState();
+    
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
     
+    // Avoid double-logging if already in mock mode
+    if (connectionStatus === 'mock') return;
+
     setConnectionStatus('mock');
+    
+    const isZh = settings.language === 'zh';
+    
     addLog({ 
       sender: 'system', 
-      text: settings.language === 'en' 
-        ? 'Connection failed. Falling back to OpenClaw Simulation Mode.' 
-        : '连接失败。切换至 OpenClaw 模拟模式。'
+      text: isZh 
+        ? '连接失败。已切换至模拟模式。' 
+        : 'Connection failed. Switched to Simulation Mode.'
     });
+
+    if (showDiagnostics) {
+        const isHttps = window.location.protocol === 'https:';
+        const targetUrl = settings.wsUrl || WS_URL;
+        const isWs = targetUrl.startsWith('ws://');
+        const isLocal = targetUrl.includes('localhost') || targetUrl.includes('127.0.0.1');
+
+        if (isZh) {
+             addLog({ sender: 'system', text: '--- 故障排查 ---' });
+             addLog({ sender: 'system', text: '1. 请确认后端已在端口 18789 启动。' });
+             
+             if (isHttps && isWs && !isLocal) {
+                 addLog({ sender: 'system', text: '2. 安全拦截: HTTPS 网页无法连接不安全的 ws:// 地址。请使用 wss:// 或在本地运行前端。' });
+             } else {
+                 addLog({ sender: 'system', text: '2. 检查防火墙设置。' });
+                 addLog({ sender: 'system', text: '3. 验证 Token 是否正确。' });
+             }
+        } else {
+             addLog({ sender: 'system', text: '--- Troubleshooting ---' });
+             addLog({ sender: 'system', text: '1. Ensure Backend is running on port 18789.' });
+             
+             if (isHttps && isWs && !isLocal) {
+                 addLog({ sender: 'system', text: '2. Mixed Content Error: Cannot connect to insecure ws:// from https:// page. Use wss:// or run frontend locally.' });
+             } else {
+                 addLog({ sender: 'system', text: '2. Check firewall settings.' });
+                 addLog({ sender: 'system', text: '3. Verify API Token.' });
+             }
+        }
+    }
   }
 
   sendCommand(command: string) {

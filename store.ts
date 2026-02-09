@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AgentStatus, ConnectionStatus, Language, LogMessage, Position, Settings, Skill } from './types';
-import { INITIAL_SKILLS } from './constants';
+import { INITIAL_SKILLS, WS_URL } from './constants';
 
 interface GameState {
   // Agent & Player
@@ -15,6 +15,7 @@ interface GameState {
   // System
   connectionStatus: ConnectionStatus;
   settings: Settings;
+  zoomLevel: number;
   
   // Actions
   setPlayerPos: (pos: Position) => void;
@@ -24,6 +25,7 @@ interface GameState {
   setConnectionStatus: (status: ConnectionStatus) => void;
   updateSettings: (settings: Partial<Settings>) => void;
   toggleSkill: (id: string) => void;
+  setZoomLevel: (zoom: number) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -45,7 +47,9 @@ export const useGameStore = create<GameState>((set) => ({
   settings: {
     apiToken: '',
     language: 'en',
+    wsUrl: WS_URL,
   },
+  zoomLevel: 1.0,
   
   setPlayerPos: (pos) => set({ playerPos: pos }),
   setTargetPos: (pos) => set({ targetPos: pos }),
@@ -73,4 +77,6 @@ export const useGameStore = create<GameState>((set) => ({
       s.id === id ? { ...s, enabled: !s.enabled } : s
     )
   })),
+
+  setZoomLevel: (zoom) => set({ zoomLevel: Math.max(0.5, Math.min(2.0, zoom)) }),
 }));

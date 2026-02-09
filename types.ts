@@ -30,4 +30,5 @@ export interface Position {
 export interface Settings {
   apiToken: string;
   language: Language;
+  wsUrl: string;
 }
