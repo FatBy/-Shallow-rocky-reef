@@ -9,10 +9,14 @@ class OpenClawService {
     const { setConnectionStatus, addLog, settings } = useGameStore.getState();
     const targetUrl = settings.wsUrl || WS_URL;
 
-    if (!token) {
-      addLog({ sender: 'system', text: settings.language === 'en' ? 'Token required to connect.' : '连接需要令牌。' });
+    // VALIDATION LOGIC
+    if (settings.mode === 'remote' && !token) {
+      addLog({ sender: 'system', text: settings.language === 'en' ? 'Token required for Remote Mode.' : '远程模式需要令牌。' });
       return;
     }
+
+    // In local mode, if token is missing, use a placeholder to ensure headers/params are still formed
+    const effectiveToken = token || 'local-dev-mode';
 
     setConnectionStatus('connecting');
     addLog({ sender: 'system', text: `Attempting connection to ${targetUrl}...` });
@@ -20,9 +24,8 @@ class OpenClawService {
     try {
       // SHOTGUN STRATEGY: 
       // Send token in multiple query params to match different backend expectations (FastAPI, Flask, plain Auth).
-      // Also construct a Bearer token string for 'authorization' param if supported by backend overrides.
-      const encodedToken = encodeURIComponent(token);
-      const encodedBearer = encodeURIComponent(`Bearer ${token}`);
+      const encodedToken = encodeURIComponent(effectiveToken);
+      const encodedBearer = encodeURIComponent(`Bearer ${effectiveToken}`);
       
       const fullUrl = `${targetUrl}?token=${encodedToken}&access_token=${encodedToken}&authorization=${encodedBearer}`;
 
@@ -104,24 +107,26 @@ class OpenClawService {
         if (isZh) {
              addLog({ sender: 'system', text: '--- 故障排查 ---' });
              addLog({ sender: 'system', text: '1. 请确认后端已在端口 18789 启动。' });
-             addLog({ sender: 'system', text: '2. 确认 URL 路径 (例: ws://localhost:18789 或 /ws)。' });
+             if(settings.mode === 'remote') {
+                 addLog({ sender: 'system', text: '2. 远程模式: 确认 Token 正确且服务器可访问。' });
+             }
              
              if (isHttps && isWs && !isLocal) {
                  addLog({ sender: 'system', text: '3. 安全拦截: HTTPS 网页无法连接不安全的 ws:// 地址。请使用 wss:// 或在本地运行前端。' });
              } else {
                  addLog({ sender: 'system', text: '3. 检查防火墙设置。' });
-                 addLog({ sender: 'system', text: '4. 验证 Token 是否正确。' });
              }
         } else {
              addLog({ sender: 'system', text: '--- Troubleshooting ---' });
              addLog({ sender: 'system', text: '1. Ensure Backend is running on port 18789.' });
-             addLog({ sender: 'system', text: '2. Check URL path (e.g. ws://localhost:18789 or /ws).' });
+             if(settings.mode === 'remote') {
+                 addLog({ sender: 'system', text: '2. Remote Mode: Verify Token and network reachability.' });
+             }
              
              if (isHttps && isWs && !isLocal) {
                  addLog({ sender: 'system', text: '3. Mixed Content Error: Cannot connect to insecure ws:// from https:// page. Use wss:// or run frontend locally.' });
              } else {
                  addLog({ sender: 'system', text: '3. Check firewall settings.' });
-                 addLog({ sender: 'system', text: '4. Verify API Token.' });
              }
         }
     }

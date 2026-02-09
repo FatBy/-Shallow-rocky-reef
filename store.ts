@@ -45,6 +45,7 @@ export const useGameStore = create<GameState>((set) => ({
   
   connectionStatus: 'disconnected',
   settings: {
+    mode: 'local', // Default to local for easier onboarding
     apiToken: '',
     language: 'en',
     wsUrl: WS_URL,

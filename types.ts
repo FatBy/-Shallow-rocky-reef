@@ -2,6 +2,8 @@ export type Language = 'en' | 'zh';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error' | 'mock';
 
+export type ConnectionMode = 'local' | 'remote';
+
 export type AgentStatus = 'idle' | 'processing' | 'error';
 
 export interface Skill {
@@ -28,6 +30,7 @@ export interface Position {
 }
 
 export interface Settings {
+  mode: ConnectionMode;
   apiToken: string;
   language: Language;
   wsUrl: string;

@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
 import { openClawService } from '../services/OpenClawService';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Command, Activity, Zap, Terminal, ChevronDown, ChevronUp, PlayCircle, HelpCircle, Globe, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Settings, Command, Activity, Zap, Terminal, ChevronDown, ChevronUp, PlayCircle, HelpCircle, Globe, AlertTriangle, RotateCcw, Laptop, Cloud } from 'lucide-react';
 import { clsx } from 'clsx';
 import { INITIAL_SKILLS, WS_URL } from '../constants';
+import { ConnectionMode } from '../types';
 
 export const HUD: React.FC = () => {
   const { logs, settings, connectionStatus, agentStatus, updateSettings, playerPos } = useGameStore();
@@ -43,19 +44,15 @@ export const HUD: React.FC = () => {
     if (cleaned.startsWith('https://')) cleaned = cleaned.replace('https://', 'wss://');
     
     // 3. Strip common REST API suffixes if accidentally pasted
-    // But be careful not to strip valid WS paths if the user intends them.
     if (cleaned.endsWith('/v1/chat/completions')) {
         cleaned = cleaned.replace(/\/v1\/chat\/completions$/, '');
     }
 
-    // 4. Remove trailing slash if it's just root, to keep it clean, but allow it if user typed it
+    // 4. Remove trailing slash if it's just root
     if (cleaned.length > 15 && cleaned.endsWith('/') && cleaned.split('/').length <= 4) {
         cleaned = cleaned.slice(0, -1);
     }
     
-    // REMOVED: The logic that forced '/ws' to be appended. 
-    // We now trust the user's input or the default constant.
-
     return cleaned;
   };
 
@@ -82,6 +79,14 @@ export const HUD: React.FC = () => {
       updateSettings({ wsUrl: WS_URL });
   };
 
+  const handleModeChange = (mode: ConnectionMode) => {
+      if (mode === 'local') {
+          updateSettings({ mode, wsUrl: WS_URL });
+      } else {
+          updateSettings({ mode });
+      }
+  };
+
   const handleDemoMode = () => {
     updateSettings({ apiToken: 'demo-token' });
     setTimeout(() => {
@@ -98,7 +103,7 @@ export const HUD: React.FC = () => {
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
   const displayUrl = settings.wsUrl;
   const isInsecureWs = displayUrl.trim().startsWith('ws://');
-  const showSecurityWarning = isHttps && isInsecureWs;
+  const showSecurityWarning = isHttps && isInsecureWs && settings.mode !== 'local'; // Relax warning for localhost usually, but browser still blocks mixed content
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4">
@@ -216,11 +221,33 @@ export const HUD: React.FC = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 border border-gray-700 p-6 rounded-xl w-96 shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-gray-900 border border-gray-700 p-6 rounded-xl w-96 shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col gap-4"
             >
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                 <Settings className="text-cyan-500" /> Settings
-              </h2>
+              <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                     <Settings className="text-cyan-500" /> Settings
+                  </h2>
+                  <div className="flex bg-gray-800 rounded p-1">
+                      <button 
+                        onClick={() => handleModeChange('local')}
+                        className={clsx(
+                            "px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition-all",
+                            settings.mode === 'local' ? "bg-cyan-600 text-white shadow" : "text-gray-400 hover:text-white"
+                        )}
+                      >
+                          <Laptop size={12} /> Local
+                      </button>
+                      <button 
+                        onClick={() => handleModeChange('remote')}
+                        className={clsx(
+                            "px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition-all",
+                            settings.mode === 'remote' ? "bg-purple-600 text-white shadow" : "text-gray-400 hover:text-white"
+                        )}
+                      >
+                          <Cloud size={12} /> Remote
+                      </button>
+                  </div>
+              </div>
               
               <div className="space-y-4">
                 <div>
@@ -228,21 +255,25 @@ export const HUD: React.FC = () => {
                         <label className="block text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
                             <Globe size={12} /> Gateway URL
                         </label>
-                        <button 
-                            onClick={handleResetUrl}
-                            title="Reset to Default"
-                            className="text-gray-500 hover:text-white transition-colors"
-                        >
-                            <RotateCcw size={12} />
-                        </button>
+                        {settings.mode === 'remote' && (
+                            <button 
+                                onClick={handleResetUrl}
+                                title="Reset to Default"
+                                className="text-gray-500 hover:text-white transition-colors"
+                            >
+                                <RotateCcw size={12} />
+                            </button>
+                        )}
                    </div>
                    <input 
                     type="text"
                     value={settings.wsUrl}
                     onChange={(e) => updateSettings({ wsUrl: e.target.value })}
                     onBlur={handleUrlBlur}
+                    disabled={settings.mode === 'local'}
                     className={clsx(
                         "w-full bg-gray-800 border rounded p-2 text-white outline-none text-sm font-mono transition-colors",
+                        settings.mode === 'local' ? "opacity-50 cursor-not-allowed border-gray-700" :
                         showSecurityWarning ? "border-red-500 focus:border-red-500 bg-red-900/10" : "border-gray-700 focus:border-cyan-500"
                     )}
                     placeholder="ws://localhost:18789"
@@ -275,14 +306,14 @@ export const HUD: React.FC = () => {
                     value={settings.apiToken}
                     onChange={(e) => updateSettings({ apiToken: e.target.value })}
                     className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-cyan-500 outline-none text-sm"
-                    placeholder="e.g. oc_8x9s..."
+                    placeholder={settings.mode === 'local' ? "(Optional for local mode)" : "e.g. oc_8x9s..."}
                   />
                   <div className="mt-2 flex items-start gap-2 text-xs text-gray-500 bg-gray-800/50 p-2 rounded border border-gray-700/50">
                       <HelpCircle size={14} className="mt-0.5 shrink-0" />
                       <span>
                         {settings.language === 'zh' 
-                           ? "真实 Token 请在 OpenClaw 后端启动时的终端日志中查看。"
-                           : "Find the real Token in your OpenClaw backend terminal logs on startup."}
+                           ? (settings.mode === 'local' ? "本地模式通常不需要 Token，除非您手动开启了鉴权。" : "真实 Token 请在 OpenClaw 后端启动时的终端日志中查看。")
+                           : (settings.mode === 'local' ? "Tokens are usually optional for localhost, unless configured otherwise." : "Find the real Token in your OpenClaw backend terminal logs on startup.")}
                       </span>
                   </div>
                 </div>
@@ -314,7 +345,7 @@ export const HUD: React.FC = () => {
                             showSecurityWarning ? "bg-gray-600 opacity-50 cursor-not-allowed" : "bg-green-600 hover:bg-green-500"
                         )}
                     >
-                        Connect
+                        {settings.mode === 'local' ? "Connect Local" : "Connect Remote"}
                     </button>
                     <button 
                         type="button"
