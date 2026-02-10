@@ -542,8 +542,27 @@ console.log('=============================================');
                     value={settings.apiToken}
                     onChange={(e) => updateSettings({ apiToken: e.target.value })}
                     className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-cyan-500 outline-none text-sm"
-                    placeholder={settings.mode === 'local' ? "(Optional for local)" : "Auth Token"}
+                    placeholder={settings.mode === 'local' ? "(无需 Token / No Token needed)" : "Auth Token"}
                   />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Authorization Token</label>
+                  <input 
+                    type="password"
+                    value={settings.apiToken}
+                    onChange={(e) => updateSettings({ apiToken: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-cyan-500 outline-none text-sm"
+                    placeholder={settings.mode === 'local' ? "(无需 Token / No Token needed)" : "Auth Token"}
+                  />
+                  <div className="mt-2 flex items-start gap-2 text-xs text-gray-500 bg-gray-800/50 p-2 rounded border border-gray-700/50">
+                      <HelpCircle size={14} className="mt-0.5 shrink-0" />
+                      <span>
+                        {settings.language === 'zh' 
+                           ? (settings.mode === 'local' ? "本地模式通常默认不需鉴权，留空即可。" : "真实 Token 请在 OpenClaw 后端启动时的终端日志中查看。")
+                           : (settings.mode === 'local' ? "Local mode usually requires no token. Leave empty." : "Find the real Token in your OpenClaw backend terminal logs on startup.")}
+                      </span>
+                  </div>
                 </div>
                 
                 <div>

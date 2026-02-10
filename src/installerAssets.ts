@@ -204,19 +204,19 @@ class OpenClawService {
     setConnectionStatus('connecting');
     
     // Determine Connection URL
-    // Local: Use "/" to trigger Vite Proxy (bypasses CORS)
-    // Remote: Use the exact URL from settings (allows connecting to external servers)
     const connectionUrl = settings.mode === 'local' ? "/" : settings.wsUrl;
     
     const isZh = settings.language === 'zh';
     addLog({ sender: 'system', text: isZh ? \`正在连接: \${connectionUrl} (Socket.io)...\` : \`Connecting to: \${connectionUrl} (Socket.io)...\` });
 
+    // ⚠️ IMPORTANT: For local mode without a token, do not send { token: "" }.
+    // Send an empty auth object instead to prevent "invalid token" errors.
+    const authPayload = (settings.mode === 'local' && !token) ? {} : { token };
+
     this.socket = io(connectionUrl, {
       path: "/socket.io",
-      transports: ["websocket"], // Force WebSocket transport
-      auth: {
-        token: token
-      },
+      transports: ["websocket"],
+      auth: authPayload,
       reconnection: true,
       reconnectionAttempts: 5,
     });
@@ -833,6 +833,15 @@ export const HUD: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Authorization Token</label>
                   <input type="password" value={settings.apiToken} onChange={(e) => updateSettings({ apiToken: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-cyan-500 outline-none text-sm" placeholder={settings.mode === 'local' ? "(Optional for local mode)" : "e.g. oc_8x9s..."} />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Authorization Token</label>
+                  <input type="password" value={settings.apiToken} onChange={(e) => updateSettings({ apiToken: e.target.value })} className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:border-cyan-500 outline-none text-sm" placeholder={settings.mode === 'local' ? "(无需 Token / No Token needed)" : "Auth Token"} />
+                  <div className="mt-2 flex items-start gap-2 text-xs text-gray-500 bg-gray-800/50 p-2 rounded border border-gray-700/50">
+                      <HelpCircle size={14} className="mt-0.5 shrink-0" />
+                      <span>{settings.language === 'zh' ? (settings.mode === 'local' ? "本地模式通常默认不需鉴权，留空即可。" : "真实 Token 请在 OpenClaw 后端启动时的终端日志中查看。") : (settings.mode === 'local' ? "Local mode usually requires no token. Leave empty." : "Find the real Token in your OpenClaw backend terminal logs on startup.")}</span>
+                  </div>
                 </div>
                 
                 <div>

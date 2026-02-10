@@ -20,19 +20,20 @@ class OpenClawService {
     setConnectionStatus('connecting');
     
     // Determine Connection URL
-    // Local: Use "/" to trigger Vite Proxy (bypasses CORS)
-    // Remote: Use the exact URL from settings (allows connecting to external servers)
     const connectionUrl = settings.mode === 'local' ? "/" : settings.wsUrl;
     
     const isZh = settings.language === 'zh';
     addLog({ sender: 'system', text: isZh ? `正在连接: ${connectionUrl} (Socket.io)...` : `Connecting to: ${connectionUrl} (Socket.io)...` });
 
+    // ⚠️ IMPORTANT: For local mode without a token, sending { token: "" } might cause
+    // the backend to reject the connection as "Invalid Token". 
+    // We send an empty auth object instead.
+    const authPayload = (settings.mode === 'local' && !token) ? {} : { token };
+
     this.socket = io(connectionUrl, {
       path: "/socket.io",
-      transports: ["websocket"], // Force WebSocket transport
-      auth: {
-        token: token
-      },
+      transports: ["websocket"],
+      auth: authPayload,
       reconnection: true,
       reconnectionAttempts: 5,
     });
