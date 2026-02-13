@@ -72,16 +72,6 @@ export const SettingsView: React.FC = () => {
     }, 50);
   };
   
-  const handleDownloadInstaller = () => {
-      // (Simplified trigger - reuse the logic from previous HUD or just trigger a log)
-      // Since this is a refactor, ideally the installer logic should be in a utility
-      // For now, we instruct users to use the pre-downloaded file or simple message
-      console.log("Installer download requested");
-      // Re-implementing the download logic here would be verbose, 
-      // but in a real app this would be a shared utility function.
-      alert(isZh ? "请使用提供的 install.js 脚本。" : "Please use the provided install.js script.");
-  };
-
   return (
     <div className="h-full w-full p-8 overflow-y-auto bg-gray-900/50">
       <div className="max-w-2xl mx-auto space-y-8">
