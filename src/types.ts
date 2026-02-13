@@ -11,6 +11,8 @@ export type AgentStatus = 'idle' | 'processing' | 'error';
 // The "Regions" of the Digital Brain
 export type HouseId = 'world' | 'skills' | 'memory' | 'tasks' | 'soul' | 'console' | 'settings';
 
+export type ThemeColor = 'cyan' | 'amber' | 'emerald' | 'purple' | 'blue';
+
 // The Protocol: Every House must adhere to this interface
 export interface HouseConfig {
   id: HouseId;
@@ -20,8 +22,6 @@ export interface HouseConfig {
   description?: string;
   themeColor?: string; // Optional accent color for the Dock/UI
 }
-
-export type ThemeColor = 'cyan' | 'amber' | 'emerald' | 'purple' | 'blue';
 
 export interface Skill {
   id: string; // Matches HouseId for navigation

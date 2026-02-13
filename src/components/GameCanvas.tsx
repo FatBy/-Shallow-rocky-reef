@@ -24,7 +24,7 @@ const screenToIso = (screenX: number, screenY: number, zoom: number) => {
   return { x, y };
 };
 
-// Color Palettes for Isometric Cubes (Top, Left, Right faces)
+// Color Palettes for Isometric Cubes
 const THEME_COLORS: Record<ThemeColor, { top: string, left: string, right: string, tailwind: string }> = {
   cyan: { top: '#22d3ee', left: '#0891b2', right: '#06b6d4', tailwind: 'bg-cyan-500 border-cyan-400 text-white shadow-cyan-500/50' },   // Tech
   amber: { top: '#fbbf24', left: '#b45309', right: '#f59e0b', tailwind: 'bg-amber-500 border-amber-400 text-black shadow-amber-500/50' }, // Retro
