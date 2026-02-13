@@ -1,14 +1,30 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { Dock } from './components/Dock';
 import { TopBar } from './components/TopBar';
 import { useGameStore } from './store';
 import { HOUSES } from './houses/registry';
+import { INITIAL_SKILLS } from './constants';
 import { AnimatePresence, motion } from 'framer-motion';
 
 function App() {
-  const { currentView } = useGameStore();
+  const { currentView, skills } = useGameStore();
   
+  // STATE MIGRATION:
+  // Detect if the store is holding old "Tool" skills (like browser, gmail) 
+  // instead of the new "House" skills (skills, memory, tasks, soul).
+  // If so, force a reset to the new configuration.
+  useEffect(() => {
+    const hasOldSkills = skills.some(s => ['browser', 'gmail', 'fs', 'terminal', 'python'].includes(s.id));
+    // Also check if we are missing any of the core new houses
+    const missingNewHouses = !skills.some(s => s.id === 'soul');
+    
+    if (hasOldSkills || missingNewHouses) {
+      console.log("Migration: Updating World State to Digital Lifeform Architecture...");
+      useGameStore.setState({ skills: INITIAL_SKILLS });
+    }
+  }, [skills]);
+
   // Find current component based on ID in the Registry
   const activeHouse = HOUSES.find(h => h.id === currentView);
   const ActiveComponent = activeHouse?.component;
